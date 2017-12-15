@@ -1,4 +1,4 @@
-# Host and Service Issues Check
+# Nagios Host and Service Issues Summary
 
 ## Introduction
 The following python script queries the Nagios API for hosts that are DOWN and UNREACHABLE and services that are in CRITICAL or UNKNOWN statuses. 
