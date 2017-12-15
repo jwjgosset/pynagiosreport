@@ -53,12 +53,12 @@ def write_soh_summary(filename, hosts, services):
 
     # write hosts/services into a text file or stdout if lists aren't empty
     if hosts:
-        fptr.write("The following hosts are down or unreachable: \n")
-        fptr.write("   " + "\n   ".join(hosts) + "\n")
+        fptr.write("HOSTS \n==========\n")
+        fptr.write("\n".join(hosts) + "\n")
 
     if services:
-        fptr.write("\nThe following services are in critical or unknown status: \n")
-        fptr.write("   " + "\n   ".join(services) + "\n")
+        fptr.write("\nSERVICES \n==========\n")
+        fptr.write("\n".join(services) + "\n")
 
     if file_opened:
         fptr.close()
