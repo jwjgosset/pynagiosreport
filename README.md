@@ -32,7 +32,7 @@ If a configuration file is specified the following fields are required:
 Regex types of expressions according to the Nagios API are used in the next fields:
 
     "lk:{word}" - matches anything that contains {word}
-    "in: {num1}, {num2}" = matches anything in the range of {num1} and {num2}
+    "in: {num1},{num2}" = matches anything in the range of {num1} and {num2}
 
 The next two required fields follow a similar structure:
 
