@@ -23,8 +23,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import requests
 
-SENDER = "gson@seismo.nrcan.gc.ca"
-RECIPIENT = "gloria.son@canada.ca"
 RECORDCOUNT_KEY = "recordcount"
 NAME_KEY = "name"
 HOST_NAME_KEY = "host_name"
@@ -57,7 +55,7 @@ def send_email(html, recipients):
     msg.attach(html_body)
 
     smtp = smtplib.SMTP('localhost')
-    smtp.sendmail(SENDER, RECIPIENT, msg.as_string())
+    smtp.sendmail('localhost', recipients, msg.as_string())
     smtp.quit()
 
 def html_format(hosts, services):
