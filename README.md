@@ -14,13 +14,16 @@ Ensure that the following libraries are installed beforehand:
 ## Usage
 The command to run the program is:
 
-    python check_issues.py [-c config_json_name] [-o output_txt_file] [-v]
+    python check_issues.py [-c config_json_name] [-o output_txt_file] [-e list of email recipients] [-v] [-f]
 
 The additional specifications are:
 
     -c : specify a separate configuration json
     -o : write the results to a specified text file,
          the default is output to stdout
+    -e : send an email with the summaries to a list of recipients
+    -v : verbose
+    -f : format summary into html tables
 
 ## Configuration File Formatting
 If a configuration file is specified the following fields are required:
