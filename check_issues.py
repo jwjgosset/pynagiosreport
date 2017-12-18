@@ -42,9 +42,10 @@ CURRENT_STATE_SERVICE = {
 
 def send_email(html, recipients):
     '''
-    Send an email of the Nagios summary
+    Send an email of the html Nagios summary
 
     :param html: html format of summary
+    :param recipients: list of emails to send email to
     '''
 
     msg = MIMEMultipart('alternative')
@@ -61,6 +62,9 @@ def send_email(html, recipients):
 def html_format(hosts, services):
     '''
     Creates the html format of the summary
+
+    :param hosts: list of hosts with issues
+    :param services: list of services with issues
     '''
     host_html = ""
     service_html = ""
