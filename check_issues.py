@@ -18,11 +18,17 @@ import argparse
 import json
 import logging
 import sys
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import requests
 
+SENDER = "gson@seismo.nrcan.gc.ca"
+RECIPIENT = "gloria.son@canada.ca"
 RECORDCOUNT_KEY = "recordcount"
 NAME_KEY = "name"
 HOST_NAME_KEY = "host_name"
+STATUS_UPDATE_TIME_KEY = "status_update_time"
 CURRENT_STATE_KEY = "current_state"
 CURRENT_STATE_HOST = {
     "0" : "UP",
@@ -35,6 +41,82 @@ CURRENT_STATE_SERVICE = {
     "2" : "CRITICAL",
     "3" : "UNKNOWN"
 }
+
+def send_email(html, recipients):
+    '''
+    Send an email of the Nagios summary
+
+    :param html: html format of summary
+    '''
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "Nagios XI Alert"
+    msg['To'] = ",".join(recipients)
+
+    html_body = MIMEText(html, 'html')
+    msg.attach(html_body)
+
+    smtp = smtplib.SMTP('localhost')
+    smtp.sendmail(SENDER, RECIPIENT, msg.as_string())
+    smtp.quit()
+
+def html_format(hosts, services):
+    '''
+    Creates the html format of the summary
+    '''
+    host_html = ""
+    service_html = ""
+    for host in hosts:
+        name = host[0:host.index("[")]
+        status = host[host.index("[")+1:host.index("]")]
+        status_time = host[host.index("'")+1:host.rfind("'")]
+        link = host[host.index("http"):]
+        host_html += '''
+            <tr>
+                <td><a href={}>{}</a></td>
+                <td>{}</td>
+                <td>{}</td>
+            </tr>'''.format(link, name, status, status_time)
+
+    for service in services:
+        host_name = service[0:service.index(":")]
+        name = service[service.index(":")+1:service.index("[")]
+        status = service[service.index("[")+1:service.index("]")]
+        status_time = service[service.index("'")+1:service.rfind("'")]
+        link = service[service.index("http"):]
+        service_html += '''
+            <tr>
+                <td><a href={}>{}</a></td>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+            </tr>'''.format(link, host_name, name, status, status_time)
+
+    html = '''
+    <html>
+        <table border="1">
+            <caption>Host Issues</caption>
+            <tr>
+                <th>Host</th>
+                <th>Status</th>
+                <th>Status Update Time</th>
+            </tr>
+            <tbody> {} </tbody>
+        </table>
+        <br />
+        <table border="1">
+            <caption>Service Issues</caption>
+            <tr>
+                <th>Host</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Status Update Time</th>
+            </tr>
+            <tbody> {} </tbody>
+        </table>
+    </html>
+    '''.format(host_html, service_html)
+    return html
 
 def write_soh_summary(filename, hosts, services):
     '''
@@ -94,15 +176,16 @@ def get_query(url, host_list, service_list, base_redirect):
                 state = CURRENT_STATE_SERVICE.get(
                     entry[CURRENT_STATE_KEY],
                     "Unknown state value %s" % entry[CURRENT_STATE_KEY])
-                service_list.append("{}: {} [{}] {}".format(
-                    entry[HOST_NAME_KEY],entry[NAME_KEY], state, redirect_link))
+                service_list.append("{}: {} [{}] '{}' {}".format(
+                    entry[HOST_NAME_KEY], entry[NAME_KEY], state,
+                    entry[STATUS_UPDATE_TIME_KEY], redirect_link))
             else:
                 redirect_link = base_redirect + entry[NAME_KEY]
                 state = CURRENT_STATE_HOST.get(
                     entry[CURRENT_STATE_KEY],
                     "Unknown state value %s" % entry[CURRENT_STATE_KEY])
-                host_list.append("{} [{}] {}".format(
-                    entry[NAME_KEY], state, redirect_link))
+                host_list.append("{} [{}] '{}' {}".format(
+                    entry[NAME_KEY], state, entry[STATUS_UPDATE_TIME_KEY], redirect_link))
 
 def create_query(config):
     '''
@@ -164,6 +247,9 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose")
     parser.add_argument("-o", "--output", default=sys.stdout,
                         help="Output file with Nagios SOH issues (default: stdout)")
+    parser.add_argument("-f", "--format", action="store_true", help="write summary in html format")
+    parser.add_argument("-e", "--email", nargs="+", action="store",
+                        help="send summary through email")
     args = parser.parse_args()
 
     # turn on logging if verbose argument is specified
@@ -183,8 +269,14 @@ def main():
 
     logging.info("Obtained JSON data")
     hosts, services = create_query(config)
+    html = ""
 
     write_soh_summary(args.output, hosts, services)
+    if args.format:
+        html = html_format(hosts, services)
+        logging.info(html)
+    if args.email:
+        send_email(html, args.email)
 
 if __name__ == "__main__":
     main()
