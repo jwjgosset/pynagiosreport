@@ -25,6 +25,8 @@ The additional specifications are:
     -v : verbose
     -f : format summary into html tables
 
+Note that if the -e flag is specified, the -f flag is required, otherwise an empty email will be sent.
+
 ## Configuration File Formatting
 If a configuration file is specified the following fields are required:
 
