@@ -62,7 +62,11 @@ def send_email(html, recipients, detail):
     msg['Subject'] = "Nagios XI Alert"
     msg['To'] = ",".join(recipients)
 
-    message = "<html> " + html + "<br /> <p>Details</p>"+ "<br />".join(detail) + "</html>"
+    if detail == []:
+        message = "<html>{}</html>".format(html)
+    else:
+        message = "<html> {} <p>Details</p> {} </html>".format(html, "<br />".join(detail))
+
     html_body = MIMEText(message, 'html')
     msg.attach(html_body)
 
@@ -168,7 +172,7 @@ def html_format(hosts, services):
     host_html = ""
     service_html = ""
     for host in hosts:
-        name = host[0:host.index("[")]
+        name = host[:host.index("[")]
         status = host[host.index("[")+1:host.index("]")]
         status_time = host[host.index("'")+1:host.rfind("'")]
         link = host[host.index("http"):]
@@ -180,7 +184,7 @@ def html_format(hosts, services):
             </tr>'''.format(link, name, status, status_time)
 
     for service in services:
-        host_name = service[0:service.index(":")]
+        host_name = service[:service.index(":")]
         name = service[service.index(":")+1:service.index("[")]
         status = service[service.index("[")+1:service.index("]")]
         status_time = service[service.index("'")+1:service.rfind("'")]
