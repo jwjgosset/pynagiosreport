@@ -76,7 +76,6 @@ def send_email(html, recipients, detail):
 
 def create_details_html(detail_summary, historylist):
     '''
-    STATE HISTORY
     Format html tables for the state history query results
 
     :param detail_summary: long string that contains all the detail tables
@@ -130,9 +129,8 @@ def get_empty_service_hosts(historylist):
             new_historylist.append(entry)
     return new_historylist
 
-def detail_query(base_url, api_key, details, detail_summary):
+def detail_query(base_url, api_key, details):
     '''
-    STATE HISTORY
     Create the query string and get the results from the nagios api
 
     :param base_url: nagios api website
@@ -141,6 +139,7 @@ def detail_query(base_url, api_key, details, detail_summary):
     :param detail_summary: string that will hold the html format of
         finalized the detail summary
     '''
+    detail_summary = []
     #get the last hour date string
     last_hour = datetime.utcnow() - timedelta(hours=1)
     last_hour_str = last_hour.strftime("%s")
@@ -175,11 +174,11 @@ def detail_query(base_url, api_key, details, detail_summary):
                     historylist = get_empty_service_hosts(historylist)
                 create_details_html(detail_summary, historylist)
         except requests.exceptions.ConnectionError:
-            logging.error("Cannot query %s", url)
+            logging.error("Cannot query %s", url)    
+    return detail_summary
 
 def html_format(hosts, services):
     '''
-    STATUS
     Creates the html format of the status summary
 
     :param hosts: list of hosts with issues
@@ -239,7 +238,6 @@ def html_format(hosts, services):
 
 def write_soh_summary(filename, hosts, services):
     '''
-    STATUS
     Writes results of hosts/services with issues into a file/stdout
 
     :param filename: file to write list of hosts/services to
@@ -267,7 +265,6 @@ def write_soh_summary(filename, hosts, services):
 
 def get_query(url, host_list, service_list, base_redirect, detail_check):
     '''
-    STATUS
     Retrieves data from nagios api and adds entries to appropriate host/service list
 
     :param url: URL for request to nagios api
@@ -311,7 +308,6 @@ def get_query(url, host_list, service_list, base_redirect, detail_check):
 
 def create_query(config):
     '''
-    STATUS
     Creates query string and gets response request from nagios api
 
     :param config: configuration
@@ -397,8 +393,7 @@ def main():
     api_key = config["apikey"]
     hosts, services, details = create_query(config)
 
-    detail_summary = []
-    detail_query(api, api_key, details, detail_summary)
+    detail_summary = detail_query(api, api_key, details)
     html = ""
 
     write_soh_summary(args.output, hosts, services)
