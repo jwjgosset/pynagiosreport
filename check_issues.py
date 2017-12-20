@@ -117,6 +117,19 @@ def create_details_html(detail_summary, historylist):
     </table>
     '''.format(host, table))
 
+def get_empty_service_hosts(historylist):
+    '''
+    Parse through host query results to pull out entries
+    that pertain directly to the host, not its services
+
+    :param historylist: query results for one host
+    '''
+    new_historylist = []
+    for entry in historylist:
+        if entry['service_description'] == "":
+            new_historylist.append(entry)
+    return new_historylist
+
 def detail_query(base_url, api_key, details, detail_summary):
     '''
     STATE HISTORY
@@ -142,7 +155,8 @@ def detail_query(base_url, api_key, details, detail_summary):
         params = []
         params.append("{}={}".format("starttime", last_hour_str))
         params.append("{}=lk:{}".format(HOST_NAME_KEY, entry["host"]))
-        params.append("{}=lk:{}".format(SERVICE_DESCRIPTION_KEY, entry["service"]))
+        if entry["service"] != "":
+            params.append("{}=lk:{}".format(SERVICE_DESCRIPTION_KEY, entry["service"]))
         url = base_url + "&" + "&".join(params)
 
         try:
@@ -157,6 +171,8 @@ def detail_query(base_url, api_key, details, detail_summary):
                 historylist = historylist.values()[0]
                 if not isinstance(historylist, list):
                     historylist = [historylist]
+                if entry["service"] == "":
+                    historylist = get_empty_service_hosts(historylist)
                 create_details_html(detail_summary, historylist)
         except requests.exceptions.ConnectionError:
             logging.error("Cannot query %s", url)
