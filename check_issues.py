@@ -11,6 +11,8 @@ Host check URL:
 https://assets.nagios.com/downloads/nagioscore/docs/nagioscore/3/en/hostchecks.html
 
 :author: Gloria Son December 2017
+:history: 2018-02-05 Charles
+    Major modification to clean up code
 '''
 
 import argparse
@@ -23,385 +25,252 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import requests
 
-RECORDCOUNT_KEY = "recordcount"
-NAME_KEY = "name"
-HOST_NAME_KEY = "host_name"
-STATUS_UPDATE_TIME_KEY = "status_update_time"
-CURRENT_STATE_KEY = "current_state"
-CURRENT_STATE_HOST = {
-    "0" : "UP",
-    "1" : "DOWN",
-    "2" : "UNREACHABLE"
-}
-CURRENT_STATE_SERVICE = {
-    "0" : "OK",
-    "1" : "WARNING",
-    "2" : "CRITICAL",
-    "3" : "UNKNOWN"
-}
-
-#state history constants
-STATE_HISTORY_URL = "objects/statehistory"
-SERVICE_DESCRIPTION_KEY = "service_description"
-STATE_TIME_KEY = "state_time"
-OUTPUT_KEY = "output"
-CURRENT_CHECK_KEY = "current_check_attempt"
-MAX_CHECK_KEY = "max_check_attempts"
-STATE_KEY = "state"
-
-def send_email(html, recipients, detail):
+def send_email(html, recipients):
     '''
     Send an email of the html Nagios summary
 
     :param html: html format of summary
     :param recipients: list of emails to send email to
-    :param detail: html format of detail tables
     '''
-
     msg = MIMEMultipart()
     msg['Subject'] = "Nagios XI Alert"
     msg['To'] = ",".join(recipients)
-
-    if detail == []:
-        message = "<html>{}</html>".format(html)
-    else:
-        message = "<html> {} <p>Details</p> {} </html>".format(html, "<br />".join(detail))
-
-    html_body = MIMEText(message, 'html')
+    html_body = MIMEText(html, 'html')
     msg.attach(html_body)
-
     smtp = smtplib.SMTP('localhost')
     smtp.sendmail('localhost', recipients, msg.as_string())
     smtp.quit()
 
-def create_details_html(detail_summary, historylist):
+class NagiosAPI(object):
     '''
-    Format html tables for the state history query results
-
-    :param detail_summary: long string that contains all the detail tables
-    :param historylist: an entry from the api state history response
+    Wrapper to query Nagios API
     '''
-    table = ""
-    host = historylist[0][HOST_NAME_KEY]
-    # append row to a table of an entry
-    for row in historylist:
-        table += '''
-        <tr>
-            <td>{}</td>
-            <td>{}</td>
-            <td>{}</td>
-            <td>{}/{}</td>
-            <td>{}</td>
-        </tr>
-        '''.format(
-            row[SERVICE_DESCRIPTION_KEY],
-            row[STATE_KEY],
-            row[STATE_TIME_KEY],
-            row[CURRENT_CHECK_KEY],
-            row[MAX_CHECK_KEY],
-            row[OUTPUT_KEY])
+    def __init__(self, url, apikey):
+       self.url = url
+       self.apikey = apikey
 
-    #add the table to the entire detail html string
-    detail_summary.append('''
-    <table border="1">
-        <caption>{}</caption>
-        <tr>
-            <th>Service</th>
-            <th>Status</th>
-            <th>Time</th>
-            <th>Checks</th>
-            <th>Description</th>
-        </tr>
-        <tbody>{}</tbody>
-    </table>
-    '''.format(host, table))
+    def _create_query(self, url, params):
+        '''
+        For the service, create the full URL query
+        using the params specified by arguments.
 
-def get_empty_service_hosts(historylist):
-    '''
-    Parse through host query results to pull out entries
-    that pertain directly to the host, not its services
-
-    :param historylist: query results for one host
-    '''
-    new_historylist = []
-    for entry in historylist:
-        if entry['service_description'] == "":
-            new_historylist.append(entry)
-    return new_historylist
-
-def detail_query(base_url, api_key, details):
-    '''
-    Create the query string and get the results from the nagios api
-
-    :param base_url: nagios api website
-    :param api_key: api key to access
-    :param details: list of hosts/services histories to be checked
-    :param detail_summary: string that will hold the html format of
-        finalized the detail summary
-    '''
-    detail_summary = []
-    #get the last hour date string
-    last_hour = datetime.utcnow() - timedelta(hours=1)
-    last_hour_str = last_hour.strftime("%s")
-
-    #create the base of the query string
-    base_url = "{}{}?apikey={}".format(
-        base_url if base_url.endswith("/") else base_url + "/",
-        STATE_HISTORY_URL,
-        api_key)
-
-    for entry in details:
-        params = []
-        params.append("{}={}".format("starttime", last_hour_str))
-        params.append("{}=lk:{}".format(HOST_NAME_KEY, entry["host"]))
-        if entry["service"] != "":
-            params.append("{}=lk:{}".format(SERVICE_DESCRIPTION_KEY, entry["service"]))
-        url = base_url + "&" + "&".join(params)
-
-        try:
-            #use requests to get the JSON response
-            response = requests.get(url)
-            response = json.loads(response.text)
-            historylist = response.values()[0]
-
-            #if there is content in the response, an html will be created
-            if int(historylist[RECORDCOUNT_KEY]) > 0:
-                del historylist[RECORDCOUNT_KEY]
-                historylist = historylist.values()[0]
-                if not isinstance(historylist, list):
-                    historylist = [historylist]
-                if entry["service"] == "":
-                    historylist = get_empty_service_hosts(historylist)
-                create_details_html(detail_summary, historylist)
-        except requests.exceptions.ConnectionError:
-            logging.error("Cannot query %s", url)    
-    return detail_summary
-
-def html_format(hosts, services):
-    '''
-    Creates the html format of the status summary
-
-    :param hosts: list of hosts with issues
-    :param services: list of services with issues
-    '''
-    host_html = ""
-    service_html = ""
-    for host in hosts:
-        name = host[:host.index("[")]
-        status = host[host.index("[")+1:host.index("]")]
-        status_time = host[host.index("'")+1:host.rfind("'")]
-        link = host[host.index("http"):]
-        host_html += '''
-            <tr>
-                <td><a href={}>{}</a></td>
-                <td>{}</td>
-                <td>{}</td>
-            </tr>'''.format(link, name, status, status_time)
-
-    for service in services:
-        host_name = service[:service.index(":")]
-        name = service[service.index(":")+1:service.index("[")]
-        status = service[service.index("[")+1:service.index("]")]
-        status_time = service[service.index("'")+1:service.rfind("'")]
-        link = service[service.index("http"):]
-        service_html += '''
-            <tr>
-                <td><a href={}>{}</a></td>
-                <td>{}</td>
-                <td>{}</td>
-                <td>{}</td>
-            </tr>'''.format(link, host_name, name, status, status_time)
-
-    html = '''
-        <table border="1">
-            <caption>Host Issues</caption>
-            <tr>
-                <th>Host</th>
-                <th>Status</th>
-                <th>Status Update Time</th>
-            </tr>
-            <tbody> {} </tbody>
-        </table>
-        <br />
-        <table border="1">
-            <caption>Service Issues</caption>
-            <tr>
-                <th>Host</th>
-                <th>Service</th>
-                <th>Status</th>
-                <th>Status Update Time</th>
-            </tr>
-            <tbody> {} </tbody>
-        </table>
-    '''.format(host_html, service_html)
-    return html
-
-def write_soh_summary(filename, hosts, services):
-    '''
-    Writes results of hosts/services with issues into a file/stdout
-
-    :param filename: file to write list of hosts/services to
-    :param hosts: list of hosts with issues
-    :param servies: list of services with issues
-    '''
-    if not hasattr(filename, "write"):
-        file_opened = True
-        fptr = open(filename, "w")
-    else:
-        file_opened = False
-        fptr = filename
-
-    # write hosts/services into a text file or stdout if lists aren't empty
-    if hosts:
-        fptr.write("HOSTS \n==========\n")
-        fptr.write("\n".join(hosts) + "\n")
-
-    if services:
-        fptr.write("\nSERVICES \n==========\n")
-        fptr.write("\n".join(services) + "\n")
-
-    if file_opened:
-        fptr.close()
-
-def get_query(url, host_list, service_list, base_redirect, detail_check):
-    '''
-    Retrieves data from nagios api and adds entries to appropriate host/service list
-
-    :param url: URL for request to nagios api
-    :param host_list: list of hosts with issues
-    :param service_list: list of services with issues
-    :param api_url: either hoststatus or servicestatus
-    '''
-    # retrieve data from nagios api and convert into parsable format
-    response = requests.get(url)
-    response = json.loads(response.text)
-    statuslist = response.values()[0]
-    logging.debug(statuslist)
-
-    # add hosts/services with issues to respective lists
-    if int(statuslist[RECORDCOUNT_KEY]) > 0:
-        del statuslist[RECORDCOUNT_KEY]
-        statuslist = statuslist.values()[0]
-        if not isinstance(statuslist, list):
-            statuslist = [statuslist]
-
-        for entry in statuslist:
-            # If the key HOST_NAME exists, it's a service
-            # We convert the CURRENT_STATE to readable format
-            if HOST_NAME_KEY in entry:
-                redirect_link = base_redirect + entry[HOST_NAME_KEY]
-                state = CURRENT_STATE_SERVICE.get(
-                    entry[CURRENT_STATE_KEY],
-                    "Unknown state value %s" % entry[CURRENT_STATE_KEY])
-                service_list.append("{}: {} [{}] '{}' {}".format(
-                    entry[HOST_NAME_KEY], entry[NAME_KEY], state,
-                    entry[STATUS_UPDATE_TIME_KEY], redirect_link))
-                detail_check.append({"host": entry[HOST_NAME_KEY], "service": entry[NAME_KEY]})
+        :param params: key value pair where value can also be a list
+        
+        :return: string full URL
+        '''
+        url_params = ['apikey={0}'.format(self.apikey)]
+        for key in params:
+            if isinstance(params[key], list):
+                for value in params[key]:
+                    url_params.append("{key}={value}".format(key=key, value=value))
             else:
-                redirect_link = base_redirect + entry[NAME_KEY]
-                state = CURRENT_STATE_HOST.get(
-                    entry[CURRENT_STATE_KEY],
-                    "Unknown state value %s" % entry[CURRENT_STATE_KEY])
-                host_list.append("{} [{}] '{}' {}".format(
-                    entry[NAME_KEY], state, entry[STATUS_UPDATE_TIME_KEY], redirect_link))
-                detail_check.append({"host": entry[NAME_KEY], "service": ""})
+                url_params.append("{key}={value}".format(key=key, value=params[key]))
+        return "{url}?{params}".format(url=url, params="&".join(url_params))
 
-def create_query(config):
+    def query(self, params, objects="hoststatus"):
+        '''
+        Query the Nagios API
+
+        :param params: key value pair where value can also be a list
+        :param objects: type of object to query
+        '''
+        url = self._create_query(
+            "{url}/objects/{objects}".format(
+                url=self.url[:-1] if self.url.endswith("/") else self.url,
+                objects=objects),
+            params)
+        logging.debug(url)
+        response = requests.get(url)
+        return json.loads(response.text)
+
+
+def _get_status(api, config, objects):
     '''
-    Creates query string and gets response request from nagios api
+    Process configuration check.  For each object, there is an attribute ID
+    and is reference as
+        @attributes : {'id': value}
 
+    :param api: NagiosAPI object
     :param config: configuration
-    :param api_url: configuration key and API post URL
-
-    :return: list of hosts/services with issues
+    :param objects: API reference
+    
+    :return: dict with refkey value as key
     '''
-    # create base url component to be appended later and remove unecessary fields
-    base_url = config["nagiosapi"]
-    base_key = "apikey="+ config["apikey"]
-    base_redirect = config["redirect"]
-    host_list = []
-    service_list = []
-    detail_check = []
-    del config["nagiosapi"], config["apikey"], config["redirect"]
+    status = {}
+    # return an empty list
+    if not objects in config:
+        return status
+    for params in config[objects]['checks']:
+        params.update(config[objects]['default'])
+        response = api.query(params, objects=objects)
+        # we remove the first element of the response to simplify coding
+        # first element is often a repeat of the "objects"
+        response = response.values()[0]
+        # No issues found
+        if int(response['recordcount']) == 0:
+            continue
+        # If a record is found, the following key is the list of status (or single object)
+        # we make sure its a list
+        del response['recordcount']
+        response = response.values()[0]
+        if not isinstance(response, list):
+            response = [response]
+        for obj in response:
+            status[obj['@attributes']['id']] = obj
+    return status
 
-    # parse through the service and host objects in the configuration file
-    for api_url in config:
-        #create base_params list and add the base url
-        base_params = []
-        base_params.append("{}{}?{}".format(
-            base_url if base_url.endswith("/") else base_url + "/",
-            api_url,
-            base_key))
+def get_status_list(config):
+    '''
+    Get the list of status information for hosts and services
+    '''
+    api = NagiosAPI(config['nagiosapi'], config['apikey'])
+    return (
+        _get_status(api, config, 'hoststatus'),
+        _get_status(api, config, 'servicestatus')
+    )
 
-        # parse through default parameters and add to base_params list
-        for key in config[api_url]["default"]:
-            base_params.append("{}={}".format(key, config[api_url]["default"][key]))
+def _get_html_hosts_report(hosts, link=''):
+    '''
+    Generate the Hosts HTML report.  We assume duplicate records to be removed at this
+    stage.
 
-        # iterate through each of the check entries
-        for check in config[api_url]["checks"]:
-            # add parameters to be added to the URL string based on fields in check entries
-            params = []
-            for key in check:
-                if isinstance(check[key], list):
-                    for value in check[key]:
-                        params.append("{}={}".format(key, value))
-                else:
-                    params.append("{}={}".format(key, check[key]))
+    :return: string html report
+    '''
+    html_hosts = ''
+    for host in hosts:
+        if link:
+            name = '<a href="{link}{host}">{host}</a>'.format(
+                link=link,
+                host=hosts[host].get('name')
+            )
+        else:
+            name = hosts[host].get('name')
 
-            # creating URL to be used for request
-            url = "&".join(base_params) + "&" + "&".join(params)
-            logging.info("Querying: " + url)
+        html_hosts += '''
+            <tr>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+            </tr>'''.format(
+                name,
+                hosts[host].get('status_text'),
+                hosts[host].get('status_update_time'),
+                hosts[host].get('last_time_up')
+            )
 
-            try:
-                get_query(url, host_list, service_list, base_redirect, detail_check)
-            except requests.exceptions.ConnectionError:
-                logging.error("Cannot query %s", url)
+    return '''
+        <table border="1">
+            <caption>Hosts</caption>
+            <tr>
+                <th>Host</th>
+                <th>Status</th>
+                <th>Status Update Time</th>
+                <th>Last Time Up</th>
+            </tr>
+            <tbody>{}</tbody>
+        </table>
+    '''.format(html_hosts)
 
-    return host_list, service_list, detail_check
+def _get_html_services_report(services, link=''):
+    '''
+    Generate the Services HTML report.  We assume duplicate records to be removed at this
+    stage.
+
+    :return: string html report
+    '''
+    html_services = ''
+    for service in services:
+        if link:
+            name = '<a href="{link}{host}">{host}</a>'.format(
+                link=link,
+                host=services[service].get('host_name')
+            )
+        else:
+            name = services[service].get('host_name')
+
+        html_services += '''
+            <tr>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+                <td>{}</td>
+            </tr>'''.format(
+                services[service].get('name'),
+                name,
+                services[service].get('status_text'),
+                services[service].get('status_update_time'),
+                services[service].get('last_time_ok')
+            )
+    return '''
+        <table border="1">
+            <caption>Services</caption>
+            <tr>
+                <th>Service</th>
+                <th>Host</th>
+                <th>Status</th>
+                <th>Status Update Time</th>
+                <th>Last Time OK</th>
+            </tr>
+            <tbody>{}</tbody>
+        </table>
+    '''.format(html_services)
+
+
+def get_html_report(hosts, services, link=''):
+    '''
+    Generate an HTML report with the list of hosts and services
+    '''
+    response = "<html><body>"
+    response += "" if not hosts else _get_html_hosts_report(hosts, link=link)
+    response += "" if not services else _get_html_services_report(services, link=link)
+    response += "</body></html>"
+    return response
+
 
 def main():
-    '''main'''
+    '''Main module (use -h for instructions)'''
     # add arguments to the parser
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default="config.json", help="specify a config.json file")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose")
-    parser.add_argument("-o", "--output", default=sys.stdout,
-                        help="Output file with Nagios SOH issues (default: stdout)")
-    parser.add_argument("-f", "--format", action="store_true", help="write summary in html format")
-    parser.add_argument("-e", "--email", nargs="+", action="store",
-                        help="send summary through email")
+    parser.add_argument(
+        "-c", "--config",
+        default="config.json", help="specify a config.json file")
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true", help="Verbose")
+    parser.add_argument(
+        "-e", "--email",
+        nargs="+", action="store",
+        help="send summary through email")
     args = parser.parse_args()
 
     # turn on logging if verbose argument is specified
     logging.basicConfig(level=(logging.DEBUG if args.verbose else logging.WARNING))
 
     try:
-        logging.info("Getting ready to fetch JSON data")
+        logging.info("Load configuration %s", args.config)
         with open(args.config) as fptr:
-            logging.info("Fetching JSON data")
             config = json.load(fptr)
     except IOError:
         logging.error("Cannot find configuration file")
-        sys.exit(1)
+        return 1
     except ValueError:
         logging.error("Configuration JSON format is invalid")
-        sys.exit(1)
+        return 1
 
-    logging.info("Obtained JSON data")
+    hosts, services = get_status_list(config)
+    if not hosts and not services:
+        logging.info("No hosts or services to report")
+        return 0
 
-    api = config["nagiosapi"]
-    api_key = config["apikey"]
-    hosts, services, details = create_query(config)
+    if not args.email:
+        logging.warning("No email recipients defined")
+        return 0
+    send_email(
+        get_html_report(hosts, services, link=config.get('hostlink')),
+        args.email)
 
-    detail_summary = detail_query(api, api_key, details)
-    html = ""
-
-    write_soh_summary(args.output, hosts, services)
-    if args.format:
-        html = html_format(hosts, services)
-        logging.info(html)
-    if args.email:
-        send_email(html, args.email, detail_summary)
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

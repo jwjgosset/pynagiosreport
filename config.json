@@ -1,8 +1,8 @@
 {
     "nagiosapi" : "http://nagios-o1.seismo.nrcan.gc.ca/nagiosxi/api/v1/",
     "apikey" : "A2vlNiK3kWDpCDh8bReeUmuSNLaEqrGgNcVANFS7BMPal6hvdv3nbAgeiJ82bOie",
-    "redirect" : "https://nagios-o1.seismo.nrcan.gc.ca/nagiosxi/includes/components/xicore/status.php?host=",
-    "objects/hoststatus" : {
+    "hostlink" : "https://nagios-o1.seismo.nrcan.gc.ca/nagiosxi/includes/components/xicore/status.php?host=",
+    "hoststatus" : {
         "default": {
             "problem_acknowledged": "0",
             "notifications_enabled": "1",
@@ -13,16 +13,14 @@
             {"name": "lk:C2-"}
         ]
     },
-    "objects/servicestatus" : {
+    "servicestatus" : {
         "default": {
             "problem_acknowledged": "0",
             "notifications_enabled": "1",
             "current_state": "in:2,3"
         },
         "checks": [
-            {"host_name": ["lk:CN", "lk:digitizer"], "name": "lk:VEC"},
-            {"host_name": ["lk:CN", "lk:digiitizer"], "name": "lk:VEC"},
-            {"host_name": ["lk:CN", "lk:digitizer"], "name": "lk:GNS"}
+            {"host_name": ["lk:CN-"]}
         ]
     }
 }
