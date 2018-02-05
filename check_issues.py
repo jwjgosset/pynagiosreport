@@ -19,10 +19,6 @@ import argparse
 import json
 import logging
 import sys
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from datetime import datetime, timedelta
 import requests
 
 def send_email(html, recipients):
@@ -32,13 +28,21 @@ def send_email(html, recipients):
     :param html: html format of summary
     :param recipients: list of emails to send email to
     '''
+    import getpass
+    import socket
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
     msg = MIMEMultipart()
     msg['Subject'] = "Nagios XI Alert"
     msg['To'] = ",".join(recipients)
     html_body = MIMEText(html, 'html')
     msg.attach(html_body)
-    smtp = smtplib.SMTP('localhost')
-    smtp.sendmail('localhost', recipients, msg.as_string())
+    smtp = smtplib.SMTP('mailhost')
+    smtp.sendmail(
+        getpass.getuser() + "@" + socket.gethostname(),
+        recipients, msg.as_string())
     smtp.quit()
 
 class NagiosAPI(object):
@@ -246,7 +250,7 @@ def main():
     args = parser.parse_args()
 
     # turn on logging if verbose argument is specified
-    logging.basicConfig(level=(logging.DEBUG if args.verbose else logging.WARNING))
+    logging.basicConfig(level=(logging.DEBUG if args.verbose else logging.ERROR))
 
     try:
         logging.info("Load configuration %s", args.config)
