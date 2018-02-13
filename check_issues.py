@@ -243,6 +243,9 @@ def main():
         "-e", "--email",
         nargs="+", action="store",
         help="send summary through email")
+    parser.add_argument(
+        "-E", "--emailfile",
+        help="send summary through email")
     args = parser.parse_args()
 
     # turn on logging if verbose argument is specified
@@ -264,12 +267,19 @@ def main():
         logging.info("No hosts or services to report")
         return 0
 
-    if not args.email:
+    emails = []
+    if args.emailfile:
+        with open(args.emailfile) as fptr:
+            emails += [line.strip() for line in fptr]
+    if args.email:
+        emails += args.email
+
+    if not emails:
         logging.warning("No email recipients defined")
         return 0
-    send_email(
-        get_html_report(hosts, services, link=config.get('hostlink')),
-        args.email)
+
+    logging.info("Sending email to %s" % "; ".join(emails))
+    send_email(get_html_report(hosts, services, link=config.get('hostlink')), emails)
 
 
 if __name__ == "__main__":
