@@ -9,7 +9,6 @@
             "current_state": "in:1,2"
         },
         "checks": [
-            {"name": "lk:CN-"},
             {"name": "lk:C2-"}
         ]
     },
@@ -20,7 +19,7 @@
             "current_state": "in:2,3"
         },
         "checks": [
-            {"host_name": ["lk:CN-"]}
+            {"host_name": ["lk:C2-"]}
         ]
     }
 }
