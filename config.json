@@ -9,7 +9,8 @@
             "current_state": "in:1,2"
         },
         "checks": [
-            {"name": "lk:"}
+            {"name": "lk:CN-"},
+            {"name": "lk:C2-"}
         ]
     },
     "servicestatus" : {
