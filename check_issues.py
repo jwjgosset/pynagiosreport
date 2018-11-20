@@ -107,20 +107,19 @@ def _get_status(api, config, objects):
     for params in config[objects]['checks']:
         params.update(config[objects]['default'])
         response = api.query(params, objects=objects)
-        # we remove the first element of the response to simplify coding
-        # first element is often a repeat of the "objects"
-        response = response.values()[0]
-        # No issues found
-        if int(response['recordcount']) == 0:
-            continue
+        if int(response.get('recordcount', 0)) == 0:
+            logging.info("No data found in query %s", json.dumps(params))
+            continue # no data found
         # If a record is found, the following key is the list of status (or single object)
         # we make sure its a list
         del response['recordcount']
-        response = response.values()[0]
+        response = list(response.values())[0]
         if not isinstance(response, list):
             response = [response]
         for obj in response:
-            status[obj['@attributes']['id']] = obj
+            # Add it only if it reached its max check attempts
+            if obj.get('current_check_attempt', 0) == obj.get('max_check_attempts', 0):
+                status[obj['@attributes']['id']] = obj
     return status
 
 def get_status_list(config):
