@@ -17,6 +17,7 @@
         "default": {
             "problem_acknowledged": "0",
             "notifications_enabled": "1",
+            "scheduled_downtime_depth": "0",
             "current_state": "in:2,3"
         },
         "checks": [
