@@ -1,6 +1,6 @@
 {
     "nagiosapi" : "http://nagios-o1.seismo.nrcan.gc.ca/nagiosxi/api/v1/",
-    "apikey" : "A2vlNiK3kWDpCDh8bReeUmuSNLaEqrGgNcVANFS7BMPal6hvdv3nbAgeiJ82bOie",
+    "apikey" : "7s7jkoku",
     "hostlink" : "https://nagios-o1.seismo.nrcan.gc.ca/nagiosxi/includes/components/xicore/status.php?host=",
     "hoststatus" : {
         "default": {
