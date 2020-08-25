@@ -106,7 +106,7 @@ class NagiosAPI(object):
         Unchecked means getting those that have not been silenced
         """
         params = {
-            "current_state": "in:1,2,3"
+            "current_state": "in:2,3"
         }
         if unchecked:
             params.update({

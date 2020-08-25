@@ -25,4 +25,5 @@ def test_host(api):
 def test_services(api):
     response = api.get_critical_services()
     print(response)
+    print(len(response))
     assert False
