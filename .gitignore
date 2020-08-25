@@ -1,2 +1,16 @@
-.vscode
+# Test data
+/tests/data
+
+# Python compiled
 *pyc
+
+# Ignore setup.py build information
+*egg-info
+/dist/
+/build/
+
+# Environment folders
+.pytest_cache
+.vscode
+__pycache__
+.mypy_cache
