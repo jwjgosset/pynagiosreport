@@ -11,7 +11,8 @@ from pynagioscheck.nagios import NagiosAPI
 def api():
     return NagiosAPI(
          "http://nagios-e1.seismo.nrcan.gc.ca/nagiosxi/api/v1/",
-         "7s7jkoku"
+         # "7s7jkoku"
+         "EtuGWemLEFgD6PRt99Th2Z3OvjndRhYr4to00N2EIitNnkAPMJ7NJpCeLYLTvJkD"
     )
 
 

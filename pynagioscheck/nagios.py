@@ -83,6 +83,9 @@ class NagiosAPI(object):
             })
 
         response = self.query(params, prop='hoststatus')
+        if 'error' in response:
+            logging.error(response)
+            return []
         if int(response.get('recordcount', 0)) == 0:
             logging.info(f'No data found in query {json.dumps(params)}')
             return []
@@ -113,6 +116,9 @@ class NagiosAPI(object):
             })
 
         response = self.query(params, prop='servicestatus')
+        if 'error' in response:
+            logging.error(response)
+            return []
         if int(response.get('recordcount', 0)) == 0:
             logging.info(f'No data found in query {json.dumps(params)}')
             return []
