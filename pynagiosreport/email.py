@@ -13,19 +13,27 @@ https://assets.nagios.com/downloads/nagioscore/docs/nagioscore/3/en/hostchecks.h
 :history: 2018-02-05 Charles
     Major modification to clean up code
 """
-
-import getpass
-import socket
 import smtplib
+
+import logging
+
+import datetime
+
 from email.mime.multipart import MIMEMultipart
+
 from email.mime.text import MIMEText
 
 from typing import List
 
+from .models import HostStatus, ServiceStatus
+
+from .config import get_app_settings
+
 
 def send(
-    html: str,
-    recipients: List[str]
+    hosts: List[HostStatus],
+    services: List[ServiceStatus],
+    recipients: List[str],
 ) -> None:
     """
     Send an email of the html Nagios summary
@@ -33,13 +41,22 @@ def send(
     :param html: html format of summary
     :param recipients: list of emails to send email to
     """
-    msg = MIMEMultipart()
-    msg['Subject'] = "Nagios XI Alert"
+    settings = get_app_settings()
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = settings.email_subject
     msg['To'] = ",".join(recipients)
-    html_body = MIMEText(html, 'html')
-    msg.attach(html_body)
-    smtp = smtplib.SMTP('mailhost')
-    smtp.sendmail(
-        getpass.getuser() + '@' + socket.gethostname(),
-        recipients, msg.as_string())
+    msg['From'] = settings.email_from
+
+    msg.attach(MIMEText(settings.j2_status_template.render(
+        now=datetime.datetime.utcnow(),
+        hosts=hosts,
+        services=services,
+        url_status=settings.url_status,
+    ), 'html'))
+
+    logging.info(f'Sending email from SMTP: {settings.smtp_server}')
+    smtp = smtplib.SMTP(settings.smtp_server)
+    logging.info(f'Sending to: {msg["To"]}')
+    smtp.sendmail(msg['From'], recipients, msg.as_string())
     smtp.quit()

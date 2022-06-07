@@ -4,26 +4,24 @@
 
 import pytest
 
-from pynagioscheck.nagios import NagiosAPI
+from pynagiosreport.nagios import NagiosAPI
 
 
 @pytest.fixture
-def api():
+def api() -> NagiosAPI:
     return NagiosAPI(
          "http://nagios-e1.seismo.nrcan.gc.ca/nagiosxi/api/v1/",
-         # "7s7jkoku"
-         "EtuGWemLEFgD6PRt99Th2Z3OvjndRhYr4to00N2EIitNnkAPMJ7NJpCeLYLTvJkD"
+         "7s7jkoku",
     )
 
 
-def test_host(api):
+def test_host(api: NagiosAPI):
     response = api.get_critical_hosts()
     print(response)
-    assert True
+    assert len(response) != 0
 
 
-def test_services(api):
+def test_services(api: NagiosAPI):
     response = api.get_critical_services()
     print(response)
-    print(len(response))
-    assert False
+    assert len(response) != 0

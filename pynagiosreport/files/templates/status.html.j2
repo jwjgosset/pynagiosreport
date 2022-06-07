@@ -1,0 +1,67 @@
+{#
+Variables used by Jinja2 template
+
+- now (current time UTC)
+- hosts
+- services
+- url_status (nagios base URL for status)
+
+#}
+<html>
+<body>
+    <h1>Nagios Critical Host and Service Report at {{ now.isoformat() }}</h1>
+
+    <h2>Hosts</h2>
+
+{% if hosts | length > 0 %}
+    <table border="1">
+        <tr>
+            <th>Host</th>
+            <th>Status</th>
+            <th>Status Update Time</th>
+            <th>Last Time Up</th>
+        </tr>
+        <tbody>
+            {% for host in hosts %}
+            <tr>
+                <td><a href="{{ url_status }}?show=hostdetail&host={{ host.host_name }}">{{ host.host_name }}</a></td>
+                <td>{{ host.output }}</td>
+                <td>{{ host.status_update_time.isoformat() }}</td>
+                <td>{{ host.last_time_up.isoformat() }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No hosts critical</p>
+{% endif %}
+
+    <h2>Services</h2>
+
+{% if services | length > 0 %}
+    <table border="1">
+        <tr>
+            <th>Service</th>
+            <th>Host</th>
+            <th>Status</th>
+            <th>Status Update Time</th>
+            <th>Last Time OK</th>
+        </tr>
+        <tbody>
+            {% for service in services %}
+            <tr>
+                <td><a href="{{ url_status }}?show=servicedetail&host={{ service.host_name }}&service={{ service.display_name }}&dest=auto">{{ service.display_name }}</a></td>
+                <td><a href="{{ url_status }}?show=hostdetail&host={{ service.host_name }}">{{ service.host_name }}</a></td>
+                <td>{{ service.output }}</td>
+                <td>{{ service.status_update_time.isoformat() }}</td>
+                <td>{{ service.last_time_ok.isoformat() }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No services critical</p>
+{% endif %}
+
+</body>
+</html>
