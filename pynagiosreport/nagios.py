@@ -12,6 +12,8 @@ import requests
 
 from pydantic.error_wrappers import ValidationError
 
+from pynagiosreport.exceptions import NagiosAPIException
+
 from .models import HostStatus, ServiceStatus
 
 
@@ -64,8 +66,7 @@ class NagiosAPI(object):
 
         response = self.query(params, prop='hoststatus')
         if 'error' in response:
-            logging.error(response)
-            return []
+            raise NagiosAPIException(json.dumps(response))
         if int(response.get('recordcount', 0)) == 0:
             logging.info(f'No data found in query {json.dumps(params)}')
             return []
@@ -83,6 +84,7 @@ class NagiosAPI(object):
                 == hoststatus.max_check_attempts
             ):
                 hosts.append(hoststatus)
+        logging.info(f'Found {len(hosts)} critical hosts')
         return hosts
 
     def get_critical_services(
@@ -107,8 +109,7 @@ class NagiosAPI(object):
 
         response = self.query(params, prop='servicestatus')
         if 'error' in response:
-            logging.error(response)
-            return []
+            raise NagiosAPIException(json.dumps(response))
         if int(response.get('recordcount', 0)) == 0:
             logging.info(f'No data found in query {json.dumps(params)}')
             return []
@@ -126,4 +127,5 @@ class NagiosAPI(object):
                 == servicestatus.max_check_attempts
             ):
                 services.append(servicestatus)
+        logging.info(f'Found {len(services)} critical services')
         return services
