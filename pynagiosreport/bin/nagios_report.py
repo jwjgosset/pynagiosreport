@@ -18,6 +18,11 @@ from pynagiosreport.nagios import NagiosAPI
 
 from pynagiosreport.email import send
 
+from pynagiosreport.multitech import MultitechFax, \
+    MultitechRecipient, MultitechSender
+
+import traceback
+
 
 settings = get_app_settings()
 
@@ -35,9 +40,13 @@ settings = get_app_settings()
 )
 @click.option(
     '-e', '--emails',
-    required=True,
     multiple=True,
     help='Email address to send to'
+)
+@click.option(
+    '-P', '--phones',
+    multiple=True,
+    help='Phone to call if there is a report'
 )
 @click.option(
     '--allow-empty-email',
@@ -53,6 +62,7 @@ def main(
     url: str,
     apikey: str,
     emails: List[str],
+    phones: List[str],
     allow_empty_email: bool,
     log_level: str,
 ):
@@ -71,12 +81,34 @@ def main(
     hosts = api.get_critical_hosts()
     services = api.get_critical_services()
 
-    if not allow_empty_email and (len(hosts) == 0 or len(services) == 0):
-        logging.info('Empty email, do not send')
-        return
+    total_critical = len(hosts) + len(services)
 
-    send(
-        hosts=hosts,
-        services=services,
-        recipients=emails,
-    )
+    if len(emails):
+        logging.info(f'Preparing emailing to {emails}')
+        if not allow_empty_email and total_critical == 0:
+            logging.info('Empty email, do not send')
+        else:
+            logging.info('Sending email')
+            send(hosts=hosts, services=services, recipients=emails)
+
+    if len(phones) and total_critical > 0:
+        logging.info(f'Preparing phone calling to {phones}')
+        for phone in phones:
+            mtphone = MultitechRecipient(number=phone)
+            logging.info(f'Attempting call for {phone}')
+            for fs in settings.fax_servers:
+                logging.info(f'Trying fax server {fs.host}')
+                try:
+                    fax = MultitechFax(
+                        host=fs.host,
+                        username=fs.username,
+                        password=fs.password,
+                        port=fs.port,
+                        url=fs.url,
+                    )
+                    fax.send(MultitechSender(), mtphone)
+                except Exception:
+                    logging.error(traceback.format_exc())
+                    continue
+                logging.info('Call sent succesfull')
+                break

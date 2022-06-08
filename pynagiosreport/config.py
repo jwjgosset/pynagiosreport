@@ -3,13 +3,15 @@
 '''
 import logging
 
+from typing import List
+
 from enum import Enum
 
 from pathlib import Path
 
 from functools import lru_cache
 
-from pydantic import BaseSettings
+from pydantic import BaseSettings, BaseModel
 
 from jinja2 import Template, Environment, FileSystemLoader
 
@@ -19,6 +21,14 @@ class LogLevels(Enum):
     INFO: str = 'INFO'
     WARNING: str = 'WARNING'
     ERROR: str = 'ERROR'
+
+
+class MultitechFaxSettings(BaseModel):
+    host: str
+    port: int = 80
+    url: str = '/ffws/v1/ofax'
+    username: str = 'eqalert'
+    password: str = '7a2eb62c3772be00ab403030034205cf'
 
 
 class AppSettings(BaseSettings):
@@ -39,6 +49,17 @@ class AppSettings(BaseSettings):
     smtp_server = 'mailhost.seismo.nrcan.gc.ca'
     email_subject = 'Nagios XI Report'
     email_from = 'cnsnopr@seismo.nrcan.gc.ca'
+
+    fax_servers: List[MultitechFaxSettings] = [
+        MultitechFaxSettings(
+            host='faxserver-o2.seismo.nrcan.gc.ca',
+        ),
+        MultitechFaxSettings(
+            host='faxserver-s1.seis.pgc.nrcan.gc.ca',
+        ),
+        MultitechFaxSettings(
+            host='faxserver-s2.seis.pgc.nrcan.gc.ca',
+        )]
 
     class Config:
         env_file = '.env'
@@ -64,6 +85,13 @@ class AppSettings(BaseSettings):
         Jinja2 status output template
         '''
         return self.j2_templates_env.get_template('status.html.j2')
+
+    @property
+    def j2_fax_template(self) -> Template:
+        '''
+        Jinja2 status output template
+        '''
+        return self.j2_templates_env.get_template('schedule_fax.xml.j2')
 
     def configure_logging(self):
         '''

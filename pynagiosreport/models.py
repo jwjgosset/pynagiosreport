@@ -1,8 +1,7 @@
 '''
 ..  codeauthor:: Charles Blais
 '''
-
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 import datetime
 
@@ -128,3 +127,19 @@ class ServiceStatus(BaseModel):
     should_be_scheduled: int
     state_type: int
     status_update_time: datetime.datetime
+
+
+class MultitechSender(BaseModel):
+    name: str = 'CHIS'
+    organization: str = 'NRCan'
+    email: str = ''
+
+
+class MultitechRecipient(BaseModel):
+    number: str
+    name: str = 'nagios'
+    organization: str = 'NRCan'
+
+    @validator('number')
+    def validate_number(cls, v):
+        return str(v).replace('-', '')
