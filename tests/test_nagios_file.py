@@ -9,7 +9,7 @@ from pynagiosreport.nagios.statusfile import StatusFile
 
 @pytest.fixture
 def status() -> StatusFile:
-    return StatusFile('tests/status.dat')
+    return StatusFile('tests/examples/status.dat')
 
 
 def test_host(status: StatusFile):

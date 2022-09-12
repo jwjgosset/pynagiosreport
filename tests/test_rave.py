@@ -11,7 +11,7 @@ from pynagiosreport.rave import get_description
 
 @pytest.fixture
 def status() -> StatusFile:
-    return StatusFile('tests/status.dat')
+    return StatusFile('tests/examples/status.dat')
 
 
 def test_description(status: StatusFile):
