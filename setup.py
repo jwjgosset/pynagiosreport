@@ -140,6 +140,7 @@ setup(
         'click',
         'pydantic',
         'pydantic[dotenv]',
+        'jinja2',
         'pyravealert@git+\
 http://gitlab.seismo.nrcan.gc.ca/earthquake/pyravealert.git'
 
