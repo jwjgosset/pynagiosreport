@@ -23,16 +23,17 @@ from email.mime.multipart import MIMEMultipart
 
 from email.mime.text import MIMEText
 
-from typing import List
+from typing import List, Union
 
-from .models import HostStatus, ServiceStatus
+from .models import \
+    HostStatus, HostStatusCore, ServiceStatus, ServiceStatusCore
 
 from .config import get_app_settings
 
 
 def send(
-    hosts: List[HostStatus],
-    services: List[ServiceStatus],
+    hosts: Union[List[HostStatus], List[HostStatusCore]],
+    services: Union[List[ServiceStatus], List[ServiceStatusCore]],
     recipients: List[str],
 ) -> None:
     """
@@ -48,11 +49,27 @@ def send(
     msg['To'] = ",".join(recipients)
     msg['From'] = settings.email_from
 
+    hosts_count = len(hosts)
+    more_host_count = (
+        hosts_count - settings.max_report_hosts
+        if hosts_count > settings.max_report_hosts
+        else 0)
+    hosts = hosts[:settings.max_report_hosts]
+
+    services_count = len(services)
+    more_service_count = (
+        services_count - settings.max_report_services
+        if services_count > settings.max_report_services
+        else 0)
+    services = services[:settings.max_report_services]
+
     msg.attach(MIMEText(settings.j2_status_template.render(
         now=datetime.datetime.utcnow(),
         hosts=hosts,
         services=services,
         url_status=settings.url_status,
+        more_host_count=more_host_count,
+        more_service_count=more_service_count,
     ), 'html'))
 
     logging.info(f'Sending email from SMTP: {settings.smtp_server}')

@@ -1,9 +1,9 @@
 '''
 ..  codeauthor:: Charles Blais <charles.blais@nrcan-rncan.gc.ca>
 '''
-import logging
+from typing import Optional
 
-from typing import List
+import logging
 
 from enum import Enum
 
@@ -38,10 +38,12 @@ class AppSettings(BaseSettings):
     log_datefmt: str = '%Y-%m-%d %H:%M:%S'
 
     # Nagios plugins
-    url = 'http://nagios-e1.seismo.nrcan.gc.ca'
+    url = 'http://localhost'
     path_api = '/nagiosxi/api/v1/'
     path_status = '/nagiosxi/includes/components/xicore/status.php'
     apikey = ''
+
+    status_file = '/usr/local/nagios/var/status.dat'
 
     templates_dir: str = str(Path(__file__).parent.joinpath(
         'files', 'templates'))
@@ -50,16 +52,12 @@ class AppSettings(BaseSettings):
     email_subject = 'Nagios XI Report'
     email_from = 'cnsnopr@seismo.nrcan.gc.ca'
 
-    fax_servers: List[MultitechFaxSettings] = [
-        MultitechFaxSettings(
-            host='faxserver-o2.seismo.nrcan.gc.ca',
-        ),
-        MultitechFaxSettings(
-            host='faxserver-s1.seis.pgc.nrcan.gc.ca',
-        ),
-        MultitechFaxSettings(
-            host='faxserver-s2.seis.pgc.nrcan.gc.ca',
-        )]
+    rave_url: Optional[str] = None
+    rave_username: Optional[str] = None
+    rave_password: Optional[str] = None
+
+    max_report_hosts: int = 20
+    max_report_services: int = 20
 
     class Config:
         env_file = '.env'

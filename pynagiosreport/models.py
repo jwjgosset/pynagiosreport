@@ -1,7 +1,7 @@
 '''
 ..  codeauthor:: Charles Blais
 '''
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 import datetime
 
@@ -64,6 +64,70 @@ class HostStatus(BaseModel):
     should_be_scheduled: int
     state_type: int
     status_update_time: datetime.datetime
+
+
+class HostStatusCore(BaseModel):
+    host_name: str
+    modified_attributes: int
+    check_command: str
+    check_period: str
+    notification_period: str
+    importance: int
+    check_interval: float
+    retry_interval: float
+    event_handler: str
+    has_been_checked: int
+    should_be_scheduled: int
+    check_execution_time: float
+    check_latency: float
+    check_type: int
+    current_state: int
+    last_hard_state: int
+    last_event_id: int
+    current_event_id: int
+    current_problem_id: int
+    last_problem_id: int
+    plugin_output: str
+    long_plugin_output: str
+    performance_data: str
+    last_check: datetime.datetime
+    next_check: datetime.datetime
+    check_options: int
+    current_attempt: int
+    max_attempts: int
+    state_type: int
+    last_state_change: datetime.datetime
+    last_hard_state_change: datetime.datetime
+    last_time_up: datetime.datetime
+    last_time_down: datetime.datetime
+    last_time_unreachable: datetime.datetime
+    last_notification: datetime.datetime
+    next_notification: datetime.datetime
+    no_more_notifications: int
+    current_notification_number: int
+    current_notification_id: int
+    notifications_enabled: int
+    problem_has_been_acknowledged: int
+    acknowledgement_type: int
+    active_checks_enabled: int
+    passive_checks_enabled: int
+    event_handler_enabled: int
+    flap_detection_enabled: int
+    process_performance_data: int
+    obsess: int
+    last_update: datetime.datetime
+    is_flapping: int
+    percent_state_change: float
+    scheduled_downtime_depth: int
+
+    # The following are for cross-compatibility with HostStatus
+    @property
+    def output(self) -> str:
+        return self.plugin_output
+
+    @property
+    def status_update_time(self) -> datetime.datetime:
+        return self.last_update
 
 
 class ServiceStatus(BaseModel):
@@ -129,17 +193,71 @@ class ServiceStatus(BaseModel):
     status_update_time: datetime.datetime
 
 
-class MultitechSender(BaseModel):
-    name: str = 'CHIS'
-    organization: str = 'NRCan'
-    email: str = ''
+class ServiceStatusCore(BaseModel):
+    host_name: str
+    service_description: str
+    modified_attributes: int
+    check_command: str
+    check_period: str
+    notification_period: str
+    importance: int
+    check_interval: float
+    retry_interval: float
+    event_handler: str
+    has_been_checked: int
+    should_be_scheduled: int
+    check_execution_time: float
+    check_latency: float
+    check_type: int
+    current_state: int
+    last_hard_state: int
+    last_event_id: int
+    current_event_id: int
+    current_problem_id: int
+    last_problem_id: int
+    current_attempt: int
+    max_attempts: int
+    state_type: int
+    last_state_change: datetime.datetime
+    last_hard_state_change: datetime.datetime
+    last_time_ok: datetime.datetime
+    last_time_warning: datetime.datetime
+    last_time_unknown: datetime.datetime
+    last_time_critical: datetime.datetime
+    plugin_output: str
+    long_plugin_output: str
+    performance_data: str
+    last_check: datetime.datetime
+    next_check: datetime.datetime
+    check_options: int
+    current_notification_number: int
+    current_notification_id: int
+    last_notification: int
+    next_notification: int
+    no_more_notifications: int
+    notifications_enabled: int
+    active_checks_enabled: int
+    passive_checks_enabled: int
+    event_handler_enabled: int
+    problem_has_been_acknowledged: int
+    acknowledgement_type: int
+    flap_detection_enabled: int
+    process_performance_data: int
+    obsess: int
+    last_update: datetime.datetime
+    is_flapping: int
+    percent_state_change: float
+    scheduled_downtime_depth: int
 
+    # The following are for cross-compatibility with ServiceStatus
+    @property
+    def display_name(self) -> str:
+        return self.service_description
 
-class MultitechRecipient(BaseModel):
-    number: str
-    name: str = 'nagios'
-    organization: str = 'NRCan'
+    @property
+    def output(self) -> str:
+        return self.plugin_output
 
-    @validator('number')
-    def validate_number(cls, v):
-        return str(v).replace('-', '')
+    @property
+    def status_update_time(self) -> datetime.datetime:
+        return self.last_update

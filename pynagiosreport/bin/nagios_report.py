@@ -8,20 +8,22 @@ Check nagios and generate summary report
 """
 import logging
 
-from typing import List
+from typing import List, Optional, Union
 
 import click
 
 from pynagiosreport.config import get_app_settings, LogLevels
 
-from pynagiosreport.nagios import NagiosAPI
+from pynagiosreport.nagios.api import NagiosAPI
 
-from pynagiosreport.email import send
+from pynagiosreport.nagios.statusfile import StatusFile
 
-from pynagiosreport.multitech import MultitechFax, \
-    MultitechRecipient, MultitechSender
+from pynagiosreport.email import send as send_email
 
-import traceback
+from pynagiosreport.rave import send as send_rave, get_description
+
+from pynagiosreport.models import \
+    HostStatus, HostStatusCore, ServiceStatus, ServiceStatusCore
 
 
 settings = get_app_settings()
@@ -35,8 +37,12 @@ settings = get_app_settings()
 )
 @click.option(
     '--apikey',
-    default=settings.apikey,
     help='Nagios XI API user token'
+)
+@click.option(
+    '--status-file',
+    default=settings.status_file,
+    help='status.dat file alternative to url if no apikey defined'
 )
 @click.option(
     '-e', '--emails',
@@ -44,14 +50,14 @@ settings = get_app_settings()
     help='Email address to send to'
 )
 @click.option(
-    '-P', '--phones',
-    multiple=True,
-    help='Phone to call if there is a report'
-)
-@click.option(
     '--allow-empty-email',
     is_flag=True,
-    help='Allow sending empty email (non-critical'
+    help='Allow sending empty email (0 count email)'
+)
+@click.option(
+    '--stdout',
+    is_flag=True,
+    help='Send report by stdout'
 )
 @click.option(
     '--log-level',
@@ -60,55 +66,62 @@ settings = get_app_settings()
 )
 def main(
     url: str,
-    apikey: str,
+    apikey: Optional[str],
+    status_file: str,
     emails: List[str],
-    phones: List[str],
     allow_empty_email: bool,
+    stdout: bool,
     log_level: str,
 ):
     """
     Get all critical hosts/services that the API token can see and send
     a report to all those in recipients.
+
+    Some variables can be configured using envrionment variables; such as
+    Rave destination.  For the complete list, look at config.py.
     """
     settings.url = url
-    settings.apikey = apikey
+    if apikey is not None:
+        settings.apikey = apikey
+    if status_file is not None:
+        settings.status_file = status_file
     if log_level is not None:
         settings.log_level = LogLevels[log_level]
     settings.configure_logging()
 
-    # Create api client
-    api = NagiosAPI(settings.url_api, settings.apikey)
-    hosts = api.get_critical_hosts()
-    services = api.get_critical_services()
+    # defined the type of the hosts/services structure for typing
+    hosts: Union[List[HostStatus], List[HostStatusCore]]
+    services: Union[List[ServiceStatus], List[ServiceStatusCore]]
+
+    # Create api client if the API key is set and get
+    # the failed services/hosts, if not, use the status.dat
+    if settings.apikey:
+        api = NagiosAPI(settings.url_api, settings.apikey)
+        hosts = api.get_critical_hosts()
+        services = api.get_critical_services()
+    else:
+        stat = StatusFile(settings.status_file)
+        hosts = stat.get_critical_hosts()
+        services = stat.get_critical_services()
 
     total_critical = len(hosts) + len(services)
 
+    # No send the reports based on the set parameters
     if len(emails):
         logging.info(f'Preparing emailing to {emails}')
         if not allow_empty_email and total_critical == 0:
             logging.info('Empty email, do not send')
         else:
             logging.info('Sending email')
-            send(hosts=hosts, services=services, recipients=emails)
+            send_email(hosts, services, emails)
 
-    if len(phones) and total_critical > 0:
-        logging.info(f'Preparing phone calling to {phones}')
-        for phone in phones:
-            mtphone = MultitechRecipient(number=phone)
-            logging.info(f'Attempting call for {phone}')
-            for fs in settings.fax_servers:
-                logging.info(f'Trying fax server {fs.host}')
-                try:
-                    fax = MultitechFax(
-                        host=fs.host,
-                        username=fs.username,
-                        password=fs.password,
-                        port=fs.port,
-                        url=fs.url,
-                    )
-                    fax.send(MultitechSender(), mtphone)
-                except Exception:
-                    logging.error(traceback.format_exc())
-                    continue
-                logging.info('Call sent succesfull')
-                break
+    if (
+        settings.rave_url and
+        settings.rave_username and
+        settings.rave_password
+    ):
+        logging.info('Preparing sending by rave')
+        send_rave(hosts, services)
+
+    if stdout:
+        print(get_description(hosts, services))

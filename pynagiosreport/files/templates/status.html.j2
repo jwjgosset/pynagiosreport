@@ -5,6 +5,8 @@ Variables used by Jinja2 template
 - hosts
 - services
 - url_status (nagios base URL for status)
+- more_service_count (when over display limit)
+- more_host_count (when over display limit)
 
 #}
 <html>
@@ -32,6 +34,9 @@ Variables used by Jinja2 template
             {% endfor %}
         </tbody>
     </table>
+    {% if more_host_count > 0 %}
+    <p>Maximum display reached.  {{ more_host_count }} more hosts are alerting</p>
+    {% endif %}
 {% else %}
     <p>No hosts critical</p>
 {% endif %}
@@ -59,6 +64,9 @@ Variables used by Jinja2 template
             {% endfor %}
         </tbody>
     </table>
+    {% if more_host_count > 0 %}
+    <p>Maximum display reached.  {{ more_service_count }} more services are alerting</p>
+    {% endif %}
 {% else %}
     <p>No services critical</p>
 {% endif %}
