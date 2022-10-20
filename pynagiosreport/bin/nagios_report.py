@@ -52,7 +52,12 @@ settings = get_app_settings()
 @click.option(
     '--allow-empty-email',
     is_flag=True,
-    help='Allow sending empty email (0 count email)'
+    help='Allow sending empty email (0 count alerts)'
+)
+@click.option(
+    '--allow-empty-rave',
+    is_flag=True,
+    help='Allow sending empty Rave notice (0 count alerts)'
 )
 @click.option(
     '--stdout',
@@ -70,6 +75,7 @@ def main(
     status_file: str,
     emails: List[str],
     allow_empty_email: bool,
+    allow_empty_rave: bool,
     stdout: bool,
     log_level: str,
 ):
@@ -120,8 +126,11 @@ def main(
         settings.rave_username and
         settings.rave_password
     ):
-        logging.info('Preparing sending by rave')
-        send_rave(hosts, services)
+        if not allow_empty_rave and total_critical == 0:
+            logging.info('Empty rave, do not send')
+        else:
+            logging.info('Preparing sending by rave')
+            send_rave(hosts, services)
 
     if stdout:
         print(get_description(hosts, services))
